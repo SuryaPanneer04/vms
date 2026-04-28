@@ -11,9 +11,9 @@ if (empty($pass_no)) {
 }
 
 
-$sql = "SELECT v.*, e.emp_name AS meeting_person_name, e.contact_no AS meeting_person_contact, e.department, e.designation 
+$sql = "SELECT v.*, e.full_name AS meeting_person_name, e.contact_no AS meeting_person_contact, e.department, e.designation 
         FROM visitor_master v 
-        LEFT JOIN employee_master e ON v.employee_id = e.id 
+        LEFT JOIN users e ON v.employee_id = e.id 
         WHERE v.pass_no = ?";
 
 $stmt = $con->prepare($sql);

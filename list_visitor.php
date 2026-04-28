@@ -52,9 +52,10 @@ $total_records = $total_stmt->fetchColumn();
 $total_pages = ceil($total_records / $limit);
 
 // Fetch visitors with LIMIT
-$query = "SELECT v.*, e.emp_name, e.department 
+$query = "SELECT v.*, e.full_name AS emp_name, e.department, d.dept_color 
           FROM visitor_master v 
-          LEFT JOIN employee_master e ON v.employee_id = e.id 
+          LEFT JOIN users e ON v.employee_id = e.id 
+          LEFT JOIN departments d ON e.department = d.dept_name
           WHERE 1=1";
 
 $final_params = [];
@@ -144,7 +145,9 @@ $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
                                 <td>
                                     <div class="fw-bold"><?= htmlspecialchars($row['emp_name']) ?></div>
-                                    <div class="badge bg-light text-dark fw-normal"><?= htmlspecialchars($row['department']) ?></div>
+                                    <div class="badge fw-normal" style="background: <?= !empty($row['dept_color']) ? $row['dept_color'] : '#f8f9fa' ?>; color: <?= !empty($row['dept_color']) ? '#fff' : '#212529' ?>;">
+                                        <?= htmlspecialchars($row['department']) ?>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="small">
@@ -212,15 +215,18 @@ $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <i class="fas fa-print"></i>
                                             </a>
 
+                                            <button class="btn btn-outline-info btn-sm viewTimelineBtn" 
+                                                title="View Meeting History"
+                                                data-id="<?= $row['id'] ?>"
+                                                data-name="<?= htmlspecialchars($row['visitor_name']) ?>">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+
                                             <?php if(empty($row['out_time'])): ?>
                                                 <button class="btn btn-danger btn-sm checkoutBtn" 
-                                                    title="End Visitor Meeting"
+                                                    title="End Visitor Meeting (Gate)"
                                                     data-pass="<?= $row['pass_no'] ?>">
-                                                    <i class="fas fa-sign-out-alt me-1"></i> End Visit
-                                                </button>
-                                            <?php else: ?>
-                                                <button class="btn btn-secondary btn-sm" disabled>
-                                                    <i class="fas fa-check"></i> Done
+                                                    <i class="fas fa-sign-out-alt"></i>
                                                 </button>
                                             <?php endif; ?>
 
@@ -271,33 +277,42 @@ $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </div>
 
+<!-- TIMELINE MODAL -->
+<div class="modal fade" id="timelineModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title fw-bold"><i class="fas fa-clock-rotate-left me-2"></i> Meeting Timeline: <span id="timelineVisitorName"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div id="timelineContent">
+            <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- CHECKOUT MODAL -->
 <div class="modal fade" id="checkoutModal" tabindex="-1">
   <div class="modal-dialog">
     <form id="checkoutForm" class="modal-content">
-
       <div class="modal-header">
         <h5 class="modal-title">Visitor Checkout</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-
       <div class="modal-body">
-
         <input type="hidden" name="pass_no" id="modal_pass_no">
-
         <label>Check-out Time</label>
         <input type="datetime-local" class="form-control" name="out_time" id="out_time">
-
       </div>
-
       <div class="modal-footer">
         <button type="submit" class="btn btn-danger">Confirm Checkout</button>
       </div>
-
     </form>
   </div>
 </div>
-<!-- END CHECKOUT MODAL -->
 <script>
 
 function getPrint(){
@@ -361,30 +376,69 @@ document.querySelectorAll(".checkoutBtn").forEach(btn=>{
 
 document.getElementById("checkoutForm").addEventListener("submit", function(e){
     e.preventDefault();
-
     let formData = new FormData(this);
+    fetch("checkout_visitor.php", { method: "POST", body: formData })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status == "success") location.reload();
+        else alert("Error: " + data.message);
+    });
+});
 
-    fetch("checkout_visitor.php", {
-        method: "POST",
-        body: formData
-    })
-    .then(res => res.text())       
-    .then(text => {
-        console.log("Server raw response:", text);
-        try {
-            let data = JSON.parse(text);  
-            if(data.status == "success"){
-                location.reload();
+// Timeline Logic
+document.querySelectorAll(".viewTimelineBtn").forEach(btn => {
+    btn.addEventListener("click", function() {
+        const id = this.dataset.id;
+        document.getElementById('timelineVisitorName').innerText = this.dataset.name;
+        const timelineModal = new bootstrap.Modal(document.getElementById('timelineModal'));
+        
+        fetch("get_meeting_timeline.php?visitor_id=" + id)
+        .then(res => res.json())
+        .then(data => {
+            let html = '<div class="timeline-container">';
+            if(data.length === 0) {
+                html += '<p class="text-center text-muted">No detailed handoff history recorded yet.</p>';
             } else {
-                alert("Error: " + data.message);
+                data.forEach(item => {
+                    let out = item.check_out_time ? new Date(item.check_out_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '<span class="badge bg-success">Ongoing</span>';
+                    
+                    let durationTxt = "";
+                    if (item.check_out_time) {
+                        let diffMin = Math.round((new Date(item.check_out_time) - new Date(item.check_in_time)) / 60000);
+                        if (diffMin >= 60) {
+                            let h = Math.floor(diffMin / 60);
+                            let m = diffMin % 60;
+                            durationTxt = h + " hr" + (h > 1 ? "s" : "") + (m > 0 ? " " + m + " mins" : "");
+                        } else {
+                            durationTxt = diffMin + " mins";
+                        }
+                    }
+
+                    html += `
+                        <div class="mb-3 p-3 border rounded shadow-sm">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-primary">${item.emp_name}</h6>
+                                    <small class="text-muted">${item.department} | ${item.designation}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small fw-bold">${new Date(item.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${out}</div>
+                                    ${durationTxt ? `<span class="badge bg-light text-dark border mt-1" style="font-size:0.6rem;">${durationTxt}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="mt-2 small border-top pt-2">
+                                ${item.assigner_name !== item.emp_name ? `
+                                <span class="text-muted">Assigned By:</span> <strong>${item.assigner_name}</strong>` : ''}
+                                ${item.notes ? `${item.assigner_name !== item.emp_name ? '<br>' : ''}<span class="text-muted">Note:</span> <em>${item.notes}</em>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
             }
-        } catch(e) {
-            
-            alert("Server error:\n" + text.substring(0, 200));
-        }
-    })
-    .catch(err => {
-        alert("Network error: " + err);
+            html += '</div>';
+            document.getElementById('timelineContent').innerHTML = html;
+            timelineModal.show();
+        });
     });
 });
 </script>

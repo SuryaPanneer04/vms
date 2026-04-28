@@ -19,11 +19,20 @@ if(empty($pass_no)){
 try {
     $stmt = $con->prepare("
         UPDATE visitor_master
-        SET out_time = ?
+        SET out_time = ?,
+            meeting_out_time = COALESCE(meeting_out_time, ?)
         WHERE pass_no = ?
     ");
+    $stmt->execute([$out_time, $out_time, $pass_no]);
 
-    $stmt->execute([$out_time, $pass_no]);
+    // Also close any active handoff segment
+    $h_upd = $con->prepare("
+        UPDATE visitor_handoffs h
+        JOIN visitor_master v ON h.visitor_id = v.id
+        SET h.check_out_time = ?
+        WHERE v.pass_no = ? AND h.check_out_time IS NULL
+    ");
+    $h_upd->execute([$out_time, $pass_no]);
 
     echo json_encode([
         "status"  => "success",

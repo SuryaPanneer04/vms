@@ -1,8 +1,7 @@
 <?php
-session_start();
+include("includes/config.php");
 include("includes/header.php");
 include("includes/sidebar.php");
-include("includes/config.php");
 date_default_timezone_set('Asia/Kolkata');
 
 function generateVisitorID($con){
@@ -19,7 +18,7 @@ $visitor_data = null;
 if(isset($_GET['id'])){
     $stmt = $con->prepare("SELECT v.*, e.department, e.designation 
                            FROM visitor_master v 
-                           LEFT JOIN employee_master e ON v.employee_id = e.id 
+                           LEFT JOIN users e ON v.employee_id = e.id 
                            WHERE v.id = ?");
     $stmt->execute([$_GET['id']]);
     $visitor_data = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -28,9 +27,15 @@ if(isset($_GET['id'])){
     $pass_no = generateVisitorID($con);
 }
 
-$emp = $con->prepare("SELECT * FROM employee_master");
+$emp = $con->prepare("SELECT u.*, d.dept_color 
+               FROM users u 
+               LEFT JOIN departments d ON u.department = d.dept_name 
+               WHERE u.status = 'Active' ORDER BY u.full_name ASC");
 $emp->execute();
 $employees = $emp->fetchAll(PDO::FETCH_ASSOC);
+
+$dept_q = $con->query("SELECT dept_name, dept_color FROM departments WHERE status = 1 ORDER BY dept_name ASC");
+$departments_list = $dept_q->fetchAll(PDO::FETCH_ASSOC);
 
 $checkin_time = !empty($visitor_data['in_time']) ? date("Y-m-d\TH:i", strtotime($visitor_data['in_time'])) : date("Y-m-d\TH:i");
 $is_scheduled = ($visitor_data && $visitor_data['approval_status'] == 3);
@@ -236,25 +241,42 @@ $devices_arr = !empty($visitor_data['devices']) ? explode(",", $visitor_data['de
                             </h5>
                             <div class="row g-4">
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Host Department</label>
-                                    <input type="text" class="form-control bg-light" id="department" value="<?= htmlspecialchars($visitor_data['department'] ?? '') ?>" readonly>
+                                    <label class="form-label fw-bold">Filter by Department</label>
+                                    <select id="filter_dept" class="form-select shadow-sm">
+                                        <option value="">All Departments</option>
+                                        <?php foreach($departments_list as $d): ?>
+                                            <option value="<?= $d['dept_name'] ?>" 
+                                                    data-color="<?= $d['dept_color'] ?>"
+                                                    style="background-color: <?= $d['dept_color'] ?>; color: #fff;"
+                                                    <?= ($visitor_data['department'] ?? '') == $d['dept_name'] ? 'selected' : '' ?>>
+                                                <?= $d['dept_name'] ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                                 
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">Host Designation</label>
-                                    <input type="text" class="form-control bg-light" id="designation" value="<?= htmlspecialchars($visitor_data['designation'] ?? '') ?>" readonly>
-                                </div>
-
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Host Employee <span class="text-danger">*</span></label>
                                     <select name="employee_id" id="employee_id" class="form-select shadow-sm select2" required>
                                         <option value="">Choose Employee</option>
                                         <?php foreach($employees as $e): ?>
-                                            <option value="<?= $e['id'] ?>" data-dept="<?= $e['department'] ?>" data-des="<?= $e['designation'] ?>" <?= ($visitor_data['employee_id'] ?? '') == $e['id'] ? 'selected' : '' ?>>
-                                                <?= $e['emp_name'] ?>
+                                            <option value="<?= $e['id'] ?>" 
+                                                    data-dept="<?= $e['department'] ?>" 
+                                                    data-des="<?= $e['designation'] ?>" 
+                                                    data-color="<?= $e['dept_color'] ?>"
+                                                    style="border-left: 10px solid <?= $e['dept_color'] ?>;"
+                                                    class="emp-opt" 
+                                                    <?= ($visitor_data['employee_id'] ?? '') == $e['id'] ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($e['full_name']) ?> (<?= htmlspecialchars($e['department']) ?>)
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
+                                    <div id="dept_badge_preview" class="mt-2"></div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Host Designation</label>
+                                    <input type="text" class="form-control bg-light" id="designation" value="<?= htmlspecialchars($visitor_data['designation'] ?? '') ?>" readonly placeholder="Auto-filled">
                                 </div>
                                
                                 
@@ -350,10 +372,37 @@ toggleCount("discCheck","disc-count");
 toggleCount("mobileCheck","mobile-count");
 toggleCount("chargerCheck","charger-count");
 
+document.getElementById("filter_dept").addEventListener("change", function(){
+    let dept = this.value;
+    let empSelect = document.getElementById("employee_id");
+    let options = empSelect.querySelectorAll(".emp-opt");
+    
+    empSelect.value = ""; // Reset selection
+    document.getElementById("designation").value = "";
+
+    options.forEach(opt => {
+        if(dept === "" || opt.getAttribute("data-dept") === dept){
+            opt.style.display = "block";
+        } else {
+            opt.style.display = "none";
+        }
+    });
+});
+
 document.getElementById("employee_id").addEventListener("change", function(){
     let selected = this.options[this.selectedIndex];
-    document.getElementById("department").value = selected.getAttribute("data-dept") || '';
     document.getElementById("designation").value = selected.getAttribute("data-des") || '';
+    
+    // Show Color Badge
+    let deptName = selected.getAttribute("data-dept");
+    let deptColor = selected.getAttribute("data-color");
+    let badgeContainer = document.getElementById("dept_badge_preview");
+    
+    if(deptName && deptColor) {
+        badgeContainer.innerHTML = `<span class="badge w-100 py-2 fw-bold text-uppercase" style="background: ${deptColor}; color: #fff; letter-spacing: 0.5px;">${deptName}</span>`;
+    } else {
+        badgeContainer.innerHTML = "";
+    }
 });
 
 document.getElementById("contact_no").addEventListener("keyup", function(){
@@ -368,10 +417,13 @@ document.getElementById("contact_no").addEventListener("keyup", function(){
                   document.querySelector("[name='visitor_type']").value = data.visitor_type || '';
                   document.getElementById("company_name").value = data.company_name || '';
                   document.getElementById("email").value = data.email || '';
+                  
+                  // Reset department filter to show all so the selected employee is visible
+                  document.getElementById("filter_dept").value = "";
+                  document.querySelectorAll(".emp-opt").forEach(opt => opt.style.display = "block");
+                  
                   document.getElementById("employee_id").value = data.employee_id || '';
                   document.getElementById("id_type").value = data.id_type || '';
-
-                  document.getElementById("department").value = data.department || '';
                   document.getElementById("designation").value = data.designation || '';
 
                   document.getElementById("old_file_name").innerText = data.id_upload || 'No file uploaded';
@@ -406,11 +458,8 @@ document.getElementById("visitorForm").addEventListener("submit", function(e){
             let isUpdate = document.querySelector('input[name="id"]').value;
             
             if(!isUpdate){
-                fetch("sendmail.php?pass_no=" + data.pass_no)
-                .then(() => {
-                    alert("Visitor Added Successfully & wait for employee approval");
-                    window.location.href = "list_visitor.php";
-                });
+                alert("Visitor Added Successfully & wait for employee approval");
+                window.location.href = "list_visitor.php";
             } else {
                 alert("Approved");
                 window.location.href = "list_visitor.php";

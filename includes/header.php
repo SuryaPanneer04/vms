@@ -1,3 +1,9 @@
+<?php
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,19 +25,33 @@
 
 <body>
 
-<!-- Mobile Toggle Button -->
-<button class="mobile-toggle shadow" onclick="toggleSidebar()">
-    <i class="fas fa-bars"></i>
-</button>
+<!-- Mobile Top Bar -->
+<div class="mobile-top-bar shadow-sm d-xl-none">
+    <button class="btn btn-link text-dark p-0 me-3" onclick="toggleSidebar()">
+        <i class="fas fa-bars fs-3"></i>
+    </button>
+    <div class="fw-bold text-primary">VMS <span class="text-dark">PRO</span></div>
+</div>
 
 <!-- Sidebar Overlay -->
 <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <script>
 function toggleSidebar() {
-    document.querySelector('.sidebar').classList.toggle('show');
-    document.querySelector('.sidebar-overlay').classList.toggle('show');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    const body = document.body;
+    
+    if (sidebar) sidebar.classList.toggle('show');
+    if (overlay) overlay.classList.toggle('show');
+    
+    // Toggle body scroll lock
+    if (sidebar && sidebar.classList.contains('show')) {
+        body.style.overflow = 'hidden';
+    } else {
+        body.style.overflow = '';
+    }
 }
 </script>
 
-<div class="d-flex">
+<div class="d-flex flex-column flex-xl-row">

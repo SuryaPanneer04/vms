@@ -1,5 +1,5 @@
 <?php
-session_start();
+ob_start();
 include("includes/config.php");
 include 'smtp.php';
 date_default_timezone_set('Asia/Kolkata');
@@ -81,7 +81,7 @@ if (!empty($img_capture) && strpos($img_capture, 'data:image') !== false) {
 // Fetch employee name for 'person_to_meet' to satisfy DB constraint
 $person_to_meet = "";
 if(!empty($employee_id)){
-    $e_stmt = $con->prepare("SELECT emp_name FROM employee_master WHERE id = ?");
+    $e_stmt = $con->prepare("SELECT full_name FROM users WHERE id = ?");
     $e_stmt->execute([$employee_id]);
     $person_to_meet = $e_stmt->fetchColumn() ?: "";
 }
@@ -140,6 +140,15 @@ try {
             $id
         ]);
 
+        // NEW: Create initial handoff record upon approval/check-in
+        // Only if it doesn't already exist to avoid duplicates
+        $check_h = $con->prepare("SELECT id FROM visitor_handoffs WHERE visitor_id = ?");
+        $check_h->execute([$id]);
+        if (!$check_h->fetch()) {
+            $h_ins = $con->prepare("INSERT INTO visitor_handoffs (visitor_id, emp_id, assigned_by, check_in_time, notes) VALUES (?, ?, ?, ?, ?)");
+            $h_ins->execute([$id, $employee_id, $employee_id, $in_time, "Initial Meeting"]);
+        }
+
     } else {
 
         // INSERT
@@ -195,16 +204,62 @@ try {
         ]);
     }
 
-    echo json_encode([
+    // Prepare response data
+    $response = [
         "status" => "success",
         "pass_no" => $pass_no
-    ]);
+    ];
+
+    // FAST RESPONSE: Send JSON to browser and close connection to continue in background
+    if (function_exists('fast_response')) {
+        fast_response($response);
+    } else {
+        // Fallback if helper not defined
+        echo json_encode($response);
+        
+        // If we want to continue, we need to handle it properly
+        if (session_id()) session_write_close();
+        header("Content-Encoding: none");
+        header("Content-Length: " . ob_get_length());
+        header("Connection: close");
+        ob_end_flush();
+        ob_flush();
+        flush();
+    }
+
+    // --- BACKGROUND TASKS (Mail Sending) ---
+    // Only send mail if it's a NEW registration (no ID in form)
+    if (empty($id)) {
+        // Fetch host details for email
+        $stmt = $con->prepare("
+            SELECT v.*, e.email as employee_email, e.full_name as emp_name
+            FROM visitor_master v
+            LEFT JOIN users e ON v.employee_id = e.id
+            WHERE v.pass_no = ?
+        ");
+        $stmt->execute([$pass_no]);
+        $data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($data && !empty($data['employee_email'])) {
+            $placeholders = [
+                'emp_name' => $data['emp_name'],
+                'visitor_name' => $data['visitor_name'],
+                'contact_no' => $data['contact_no'],
+                'pass_no' => $data['pass_no'],
+                'purpose' => $data['purpose'],
+                'company_name' => $data['company_name'],
+                'in_time' => $data['in_time']
+            ];
+
+            sendTemplateMail($data['employee_email'], 'visitor_approval', $placeholders);
+        }
+    }
 
 } catch(PDOException $e) {
+    if (ob_get_level()) ob_end_clean();
     echo json_encode([
         "status" => "error",
         "message" => $e->getMessage()
     ]);
 }
-
 ?>

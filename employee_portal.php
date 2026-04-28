@@ -3,12 +3,11 @@ include("includes/config.php");
 include("includes/header.php");
 include("includes/sidebar.php");
 
-// In a real system, you'd get the logged-in employee's ID from session.
-// For now, let's assume we are viewing for Employee ID 1 (or allow selection for demo)
-$emp_id = $_GET['emp_id'] ?? 42; 
+// Use the logged-in employee's ID from session.
+$emp_id = $_SESSION['user_id']; 
 
-// Fetch current employee info
-$emp_stmt = $con->prepare("SELECT * FROM employee_master WHERE id = ?");
+// Fetch current employee info from users table
+$emp_stmt = $con->prepare("SELECT * FROM users WHERE id = ?");
 $emp_stmt->execute([$emp_id]);
 $current_emp = $emp_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -30,15 +29,20 @@ $count_stmt->execute([$emp_id]);
 $total_records = $count_stmt->fetchColumn();
 $total_pages = ceil($total_records / $limit);
 
-// Fetch visitors assigned to THIS employee with LIMIT
-$query = "SELECT * FROM visitor_master WHERE employee_id = ? AND approval_status = 1 ORDER BY id DESC LIMIT $limit OFFSET $offset";
+// Fetch visitors assigned to THIS employee with assignment details
+$query = "SELECT v.*, h.notes AS handover_notes, ash.full_name AS assigner_name 
+          FROM visitor_master v 
+          LEFT JOIN visitor_handoffs h ON v.id = h.visitor_id AND h.emp_id = ? AND h.check_out_time IS NULL
+          LEFT JOIN users ash ON h.assigned_by = ash.id
+          WHERE v.employee_id = ? AND v.approval_status = 1 
+          ORDER BY v.id DESC LIMIT $limit OFFSET $offset";
 $stmt = $con->prepare($query);
-$stmt->execute([$emp_id]);
+$stmt->execute([$emp_id, $emp_id]);
 $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Summary stats for this employee
 $active_count = 0;
-foreach($my_visitors as $v) if(empty($v['out_time'])) $active_count++;
+foreach($my_visitors as $v) if(empty($v['meeting_out_time'])) $active_count++;
 $total_count = $total_records; // use total for stats card
 ?>
 
@@ -47,7 +51,7 @@ $total_count = $total_records; // use total for stats card
         <div class="row mb-4 align-items-end">
             <div class="col-lg-8 mb-3 mb-lg-0">
                 <h2 class="fw-bold mb-1 text-primary"><i class="fas fa-user-shield me-2"></i> Employee Portal</h2>
-                <p class="text-muted mb-0">Welcome back, <strong><?= htmlspecialchars($current_emp['emp_name'] ?? 'Employee') ?></strong>. Here are your assigned visitors.</p>
+                <p class="text-muted mb-0">Welcome back, <strong><?= htmlspecialchars($current_emp['full_name'] ?? 'Employee') ?></strong>. Here are your assigned visitors.</p>
             </div>
             <div class="col-lg-4">
                 <div class="row g-2 justify-content-lg-end">
@@ -105,6 +109,11 @@ $total_count = $total_records; // use total for stats card
                                 <td>
                                     <div class="small fw-bold text-dark"><i class="fas fa-user-tag me-1 text-primary"></i> Meeting with You</div>
                                     <div class="small mt-1"><i class="fas fa-phone-alt me-1 text-muted"></i> <?= htmlspecialchars($v['contact_no']) ?></div>
+                                    <?php if(!empty($v['assigner_name']) && $v['assigner_name'] != $current_emp['full_name']): ?>
+                                        <div class="small mt-1 text-info">
+                                            <i class="fas fa-reply me-1"></i> From: <strong><?= htmlspecialchars($v['assigner_name']) ?></strong>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1 flex-wrap">
@@ -145,10 +154,14 @@ $total_count = $total_records; // use total for stats card
                                             <i class="fas fa-ellipsis-v text-muted"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                                            <?php if(empty($v['out_time'])): ?>
+                                            <?php if(empty($v['meeting_out_time'])): ?>
                                                 <li><a class="dropdown-item text-danger fw-bold endMeetingBtn" href="#" 
                                                     data-pass="<?= $v['pass_no'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
-                                                    <i class="fas fa-stopwatch me-2"></i> End Meeting
+                                                    <i class="fas fa-stopwatch me-2"></i> End My Meeting
+                                                </a></li>
+                                                <li><a class="dropdown-item text-primary fw-bold assignVisitorBtn" href="#" 
+                                                    data-id="<?= $v['id'] ?>" data-pass="<?= $v['pass_no'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
+                                                    <i class="fas fa-user-plus me-2"></i> Assign to Other
                                                 </a></li>
                                             <?php endif; ?>
                                             <li><a class="dropdown-item" href="receipt.php?pass_no=<?= $v['pass_no'] ?>">
@@ -187,7 +200,7 @@ $total_count = $total_records; // use total for stats card
                 <nav>
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
-                            <a class="page-link" href="?page=<?= $page-1 ?>&emp_id=<?= $emp_id ?>"><i class="fas fa-chevron-left"></i></a>
+                            <a class="page-link" href="?page=<?= $page-1 ?>"><i class="fas fa-chevron-left"></i></a>
                         </li>
                         
                         <?php 
@@ -198,12 +211,12 @@ $total_count = $total_records; // use total for stats card
                         for($i = $start_loop; $i <= $end_loop; $i++): 
                         ?>
                             <li class="page-item <?= ($i == $page) ? 'active' : '' ?>">
-                                <a class="page-link" href="?page=<?= $i ?>&emp_id=<?= $emp_id ?>"><?= $i ?></a>
+                                <a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a>
                             </li>
                         <?php endfor; ?>
 
                         <li class="page-item <?= ($page >= $total_pages) ? 'disabled' : '' ?>">
-                            <a class="page-link" href="?page=<?= $page+1 ?>&emp_id=<?= $emp_id ?>"><i class="fas fa-chevron-right"></i></a>
+                            <a class="page-link" href="?page=<?= $page+1 ?>"><i class="fas fa-chevron-right"></i></a>
                         </li>
                     </ul>
                 </nav>
@@ -243,6 +256,61 @@ $total_count = $total_records; // use total for stats card
 .bg-opacity-10 { --bs-bg-opacity: 0.1; }
 </style>
 
+<!-- ASSIGN VISITOR MODAL -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="assignForm" class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-share-square me-2"></i> Handover Visitor</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-info py-2 small">
+                    Assigning <strong id="assignVisitorName"></strong> to another colleague.
+                </div>
+                <input type="hidden" name="visitor_id" id="assignId">
+                
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Department</label>
+                    <select id="assignDept" class="form-select">
+                        <option value="">Select Department</option>
+                        <?php 
+                        $depts = $con->query("SELECT dept_name, dept_color FROM departments WHERE status=1")->fetchAll();
+                        foreach($depts as $d): ?>
+                            <option value="<?= $d['dept_name'] ?>" style="background-color: <?= $d['dept_color'] ?>; color: #fff;">
+                                <?= $d['dept_name'] ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Select Employee</label>
+                    <select name="to_emp_id" id="assignEmp" class="form-select" required>
+                        <option value="">Choose Colleague</option>
+                        <?php 
+                        $all_emps = $con->query("SELECT id, full_name, designation, department FROM users WHERE status='Active'")->fetchAll();
+                        foreach($all_emps as $e): ?>
+                            <option value="<?= $e['id'] ?>" data-dept="<?= $e['department'] ?>" class="assign-emp-opt" style="display:none;">
+                                <?= htmlspecialchars($e['full_name']) ?> (<?= $e['designation'] ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label small fw-bold">Transfer Note (Reason)</label>
+                    <textarea name="notes" class="form-control" rows="2" placeholder="Why are you handing over this visitor?"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary px-4 shadow">Complete Handover</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- END MEETING MODAL -->
 <div class="modal fade" id="endMeetingModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -269,8 +337,8 @@ $total_count = $total_records; // use total for stats card
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const endBtns = document.querySelectorAll(".endMeetingBtn");
-    const modal = new bootstrap.Modal(document.getElementById('endMeetingModal'));
-    const form = document.getElementById('endMeetingForm');
+    const endModal = new bootstrap.Modal(document.getElementById('endMeetingModal'));
+    const endForm = document.getElementById('endMeetingForm');
 
     endBtns.forEach(btn => {
         btn.addEventListener("click", function(e) {
@@ -278,33 +346,56 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById('modalPassNo').value = this.dataset.pass;
             document.getElementById('modalVisitorName').innerText = this.dataset.name;
             
-            // Set current time for checkout
             let now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById("modalOutTime").value = now.toISOString().slice(0, 16);
             
-            modal.show();
+            endModal.show();
         });
     });
 
-    form.addEventListener("submit", function(e) {
+    endForm.addEventListener("submit", function(e) {
         e.preventDefault();
         const formData = new FormData(this);
-
-        fetch("meeting_checkout_visitor.php", {
-            method: "POST",
-            body: formData
-        })
+        fetch("meeting_checkout_visitor.php", { method: "POST", body: formData })
         .then(res => res.json())
         .then(data => {
-            if (data.status == "success") {
-                location.reload();
-            } else {
-                alert("Error: " + data.message);
-            }
-        })
-        .catch(err => {
-            alert("Error connecting to server. Please try again.");
+            if (data.status == "success") location.reload();
+            else alert("Error: " + data.message);
+        });
+    });
+
+    // ASSIGN LOGIC
+    const assignBtn = document.querySelectorAll(".assignVisitorBtn");
+    const assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
+    const assignForm = document.getElementById('assignForm');
+
+    assignBtn.forEach(btn => {
+        btn.addEventListener("click", function(e) {
+            e.preventDefault();
+            document.getElementById('assignId').value = this.dataset.id;
+            document.getElementById('assignVisitorName').innerText = this.dataset.name;
+            assignModal.show();
+        });
+    });
+
+    document.getElementById('assignDept').addEventListener("change", function() {
+        let dept = this.value;
+        let opts = document.querySelectorAll(".assign-emp-opt");
+        document.getElementById('assignEmp').value = "";
+        opts.forEach(o => {
+            o.style.display = (dept === "" || o.dataset.dept === dept) ? "block" : "none";
+        });
+    });
+
+    assignForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        fetch("assign_visitor.php", { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status == "success") location.reload();
+            else alert(data.message);
         });
     });
 });

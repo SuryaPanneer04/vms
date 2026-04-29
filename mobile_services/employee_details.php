@@ -1,4 +1,5 @@
 <?php
+// session_start();
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
@@ -6,24 +7,18 @@ header('Content-Type: application/json');
 
 require('../includes/config.php');
 
-$userId = $_POST['user_id'] ?? $_GET['user_id'] ?? '';
-
+$department = $_POST['department'] ?? $_GET['department'] ?? '';
 
 try {
-    if (empty($userId)) {
+    if (empty($department)) {
         echo json_encode([
             'status' => false,
-            'massage' => 'user Id required'
+            'massage' => 'department required'
         ]);
         exit();
     }
-    $query = $con->prepare("SELECT vm.*, 
-        vh.id AS handoffsId, vh.visitor_id,vh.emp_id,vh.assigned_by,vh.check_in_time,vh.check_out_time 
-        FROM visitor_master vm 
-        LEFT JOIN visitor_handoffs vh ON vh.visitor_id = vm.id AND vh.emp_id = vm.employee_id 
-        WHERE vm.employee_id = :id ORDER BY vm.id DESC;
-");
-    $query->bindParam(':id', $userId);
+    $query = $con->prepare("SELECT id,full_name,designation,department FROM users WHERE department = :department AND status = 'Active'");
+    $query->bindParam(':department', $department);
     $query->execute();
 
     $row = $query->fetchAll(PDO::FETCH_ASSOC);
@@ -32,11 +27,10 @@ try {
     if (!$row) {
         echo json_encode([
             'status' => false,
-            'message' => 'User not found'
+            'message' => 'departments not found'
         ]);
         exit();
     }
-    // ✅ Correct password check
     echo json_encode([
         'status' => true,
         'data' => $row

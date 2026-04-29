@@ -1,5 +1,5 @@
 <?php
-session_start();
+// session_start();
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
@@ -18,7 +18,7 @@ try {
         ]);
         exit();
     }
-    $query = $con->prepare("SELECT * FROM employee_master WHERE email = :email");
+    $query = $con->prepare("SELECT * FROM users WHERE email = :email AND status = 'Active'");
     $query->bindParam(':email', $email);
     $query->execute();
 

@@ -44,11 +44,13 @@ $sidebar_color = $stmt_theme->fetchColumn() ?: '#000000';
 
     <div class="sidebar-content">
         <ul class="nav flex-column px-2">
+        <?php if ($user_role == 'admin'): ?>     
         <li class="nav-item">
             <a href="index.php" class="nav-link <?= $current_page == 'index.php' ? 'active' : '' ?>">
                 <i class="fas fa-th-large"></i> <span>Dashboard</span>
             </a>
         </li>
+        <?php endif; ?>
 
         <?php if ($user_role == 'admin'): ?>
             <!-- Master Data Dropdown -->

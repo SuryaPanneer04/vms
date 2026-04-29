@@ -202,6 +202,12 @@ try {
             $img_capture,
             $location
         ]);
+
+        $new_visitor_id = $con->lastInsertId();
+
+        // NEW: Create initial handoff record for the assigned employee
+        $h_ins = $con->prepare("INSERT INTO visitor_handoffs (visitor_id, emp_id, assigned_by, check_in_time, notes) VALUES (?, ?, ?, ?, ?)");
+        $h_ins->execute([$new_visitor_id, $employee_id, $employee_id, $in_time, "Initial Meeting"]);
     }
 
     // Prepare response data

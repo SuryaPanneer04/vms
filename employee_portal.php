@@ -11,11 +11,21 @@ $emp_stmt = $con->prepare("SELECT * FROM users WHERE id = ?");
 $emp_stmt->execute([$emp_id]);
 $current_emp = $emp_stmt->fetch(PDO::FETCH_ASSOC);
 
-// Fetch visitors assigned to THIS employee
-$query = "SELECT * FROM visitor_master WHERE employee_id = ? AND approval_status = 1 ORDER BY id DESC";
-$stmt = $con->prepare($query);
-$stmt->execute([$emp_id]);
-$my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Fetch ALL visitors this employee has EVER met for summary stats
+$summary_query = "SELECT DISTINCT v.* FROM visitor_master v 
+                  LEFT JOIN visitor_handoffs h ON v.id = h.visitor_id 
+                  WHERE (h.emp_id = ? OR v.employee_id = ?) AND v.approval_status = 1";
+$summary_stmt = $con->prepare($summary_query);
+$summary_stmt->execute([$emp_id, $emp_id]);
+$all_my_visitors = $summary_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Calculate summary stats BEFORE pagination overwrites data
+$active_count = 0;
+foreach($all_my_visitors as $v) {
+    // Only count as 'Active' if they are CURRENTLY with this employee
+    if(empty($v['meeting_out_time']) && $v['employee_id'] == $emp_id) $active_count++;
+}
+$total_count = count($all_my_visitors);
 
 // Pagination Setup
 $limit = 10;
@@ -23,27 +33,23 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if($page < 1) $page = 1;
 $offset = ($page - 1) * $limit;
 
-// Count total visitors for THIS employee
-$count_stmt = $con->prepare("SELECT COUNT(*) FROM visitor_master WHERE employee_id = ? AND approval_status = 1");
-$count_stmt->execute([$emp_id]);
-$total_records = $count_stmt->fetchColumn();
+// Count total visitors for THIS employee (matches main query logic)
+$total_records = $total_count;
 $total_pages = ceil($total_records / $limit);
 
-// Fetch visitors assigned to THIS employee with assignment details
-$query = "SELECT v.*, h.notes AS handover_notes, ash.full_name AS assigner_name 
+// Fetch visitors with assignment details and current host info
+$query = "SELECT v.*, h.notes AS handover_notes, ash.full_name AS assigner_name, curr_emp.full_name AS current_host_name
           FROM visitor_master v 
+          LEFT JOIN visitor_handoffs hm ON v.id = hm.visitor_id AND hm.emp_id = ?
           LEFT JOIN visitor_handoffs h ON v.id = h.visitor_id AND h.emp_id = ? AND h.check_out_time IS NULL
           LEFT JOIN users ash ON h.assigned_by = ash.id
-          WHERE v.employee_id = ? AND v.approval_status = 1 
+          LEFT JOIN users curr_emp ON v.employee_id = curr_emp.id
+          WHERE v.approval_status = 1 AND (hm.emp_id IS NOT NULL OR v.employee_id = ?)
+          GROUP BY v.id
           ORDER BY v.id DESC LIMIT $limit OFFSET $offset";
 $stmt = $con->prepare($query);
-$stmt->execute([$emp_id, $emp_id]);
+$stmt->execute([$emp_id, $emp_id, $emp_id]);
 $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Summary stats for this employee
-$active_count = 0;
-foreach($my_visitors as $v) if(empty($v['meeting_out_time'])) $active_count++;
-$total_count = $total_records; // use total for stats card
 ?>
 
 <div class="content">
@@ -107,7 +113,11 @@ $total_count = $total_records; // use total for stats card
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="small fw-bold text-dark"><i class="fas fa-user-tag me-1 text-primary"></i> Meeting with You</div>
+                                    <?php if($v['employee_id'] == $emp_id): ?>
+                                        <div class="small fw-bold text-dark"><i class="fas fa-user-tag me-1 text-primary"></i> Meeting with You</div>
+                                    <?php else: ?>
+                                        <div class="small fw-bold text-info"><i class="fas fa-exchange-alt me-1"></i> Handed Over to <strong><?= htmlspecialchars($v['current_host_name'] ?? 'Other') ?></strong></div>
+                                    <?php endif; ?>
                                     <div class="small mt-1"><i class="fas fa-phone-alt me-1 text-muted"></i> <?= htmlspecialchars($v['contact_no']) ?></div>
                                     <?php if(!empty($v['assigner_name']) && $v['assigner_name'] != $current_emp['full_name']): ?>
                                         <div class="small mt-1 text-info">
@@ -154,7 +164,7 @@ $total_count = $total_records; // use total for stats card
                                             <i class="fas fa-ellipsis-v text-muted"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                                            <?php if(empty($v['meeting_out_time'])): ?>
+                                            <?php if(empty($v['meeting_out_time']) && $v['employee_id'] == $emp_id): ?>
                                                 <li><a class="dropdown-item text-danger fw-bold endMeetingBtn" href="#" 
                                                     data-pass="<?= $v['pass_no'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
                                                     <i class="fas fa-stopwatch me-2"></i> End My Meeting

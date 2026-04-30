@@ -43,9 +43,9 @@ try {
     $ins_new = $con->prepare("INSERT INTO visitor_handoffs (visitor_id, emp_id, check_in_time, assigned_by, notes) VALUES (?, ?, ?, ?, ?)");
     $ins_new->execute([$visitor_id, $to_emp_id, $now, $from_emp_id, $notes]);
 
-    // // 3. Update main visitor record to show current host
-    // $upd_v = $con->prepare("UPDATE visitor_master SET employee_id = ? WHERE id = ?");
-    // $upd_v->execute([$to_emp_id, $visitor_id]);
+    // 3. Update main visitor record to show current host
+    $upd_v = $con->prepare("UPDATE visitor_master SET employee_id = ? WHERE id = ?");
+    $upd_v->execute([$to_emp_id, $visitor_id]);
 
     // $con->commit();
     echo json_encode(["status" => true, "message" => 'data update successfully']);

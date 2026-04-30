@@ -18,8 +18,29 @@ try {
         exit();
     }
     $query = $con->prepare("SELECT 
-            hm.*,
+            (
+                SELECT vh.check_in_time
+                FROM visitor_handoffs vh
+                WHERE vh.emp_id = :id
+                AND vh.assigned_by = :id
+                AND vh.visitor_id = v.id
+                ORDER BY vh.id DESC
+                LIMIT 1
+            ) AS checkInTime,
+            (
+                SELECT vh.check_out_time
+                FROM visitor_handoffs vh
+                WHERE vh.emp_id = :id
+                AND vh.assigned_by = :id
+                AND vh.visitor_id = v.id
+                ORDER BY vh.id DESC
+                LIMIT 1
+            ) AS checkOutTime,
             hm.id AS handoffsId,
+            hm.visitor_id,
+            hm.emp_id,
+            hm.assigned_by,
+            hm.notes,
             v.*,
             ash.full_name AS assigner_name,
             curr_emp.full_name AS current_host_name

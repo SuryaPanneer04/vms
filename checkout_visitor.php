@@ -20,10 +20,11 @@ try {
     $stmt = $con->prepare("
         UPDATE visitor_master
         SET out_time = ?,
-            meeting_out_time = COALESCE(meeting_out_time, ?)
+            meeting_out_time = COALESCE(meeting_out_time, ?),
+            checkout_by = ?
         WHERE pass_no = ?
     ");
-    $stmt->execute([$out_time, $out_time, $pass_no]);
+    $stmt->execute([$out_time, $out_time, $_SESSION['user_id'] ?? null, $pass_no]);
 
     // Also close any active handoff segment
     $h_upd = $con->prepare("

@@ -1,7 +1,6 @@
 <?php
 include("includes/config.php");
 header('Content-Type: application/json');
-
 date_default_timezone_set('Asia/Kolkata');
 
 if (!isset($_SESSION['user_id'])) {

@@ -138,6 +138,16 @@ $sidebar_color = $stmt_theme->fetchColumn() ?: '#000000';
                     <i class="fas fa-user-clock"></i> <span>My Visitors</span>
                 </a>
             </li>
+            <li class="nav-item">
+                <a href="employee_add_visitor.php" class="nav-link <?= $current_page == 'employee_add_visitor.php' ? 'active' : '' ?>">
+                    <i class="fas fa-calendar-plus"></i> <span>Schedule Visitor</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="employee_visitor_approval.php" class="nav-link <?= $current_page == 'employee_visitor_approval.php' ? 'active' : '' ?>">
+                    <i class="fas fa-user-check"></i> <span>Visitor Approvals</span>
+                </a>
+            </li>
 
             <?php if ($is_manager): ?>
                 <li class="nav-item">

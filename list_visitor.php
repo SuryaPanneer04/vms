@@ -1,6 +1,11 @@
 <?php include("includes/config.php"); ?>
-
 <?php
+// Access Control: Only admin and timeoffice/gate can access this log
+if ($_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'timeoffice' && $_SESSION['role'] !== 'gate') {
+    header("Location: employee_portal.php");
+    exit();
+}
+
 $where = [];
 $params = [];
 
@@ -43,8 +48,8 @@ $params = [];
 
 if($pass_no) { $count_query .= " AND pass_no LIKE ?"; $params[] = "%$pass_no%"; }
 if($contact_no) { $count_query .= " AND contact_no LIKE ?"; $params[] = "%$contact_no%"; }
-if($from_date) { $count_query .= " AND DATE(in_time) >= ?"; $params[] = $from_date; }
-if($to_date) { $count_query .= " AND DATE(in_time) <= ?"; $params[] = $to_date; }
+if($from_date) { $count_query .= " AND (DATE(in_time) >= ? OR DATE(meeting_date_time) >= ?)"; $params[] = $from_date; $params[] = $from_date; }
+if($to_date) { $count_query .= " AND (DATE(in_time) <= ? OR DATE(meeting_date_time) <= ?)"; $params[] = $to_date; $params[] = $to_date; }
 
 $total_stmt = $con->prepare($count_query);
 $total_stmt->execute($params);
@@ -52,17 +57,20 @@ $total_records = $total_stmt->fetchColumn();
 $total_pages = ceil($total_records / $limit);
 
 // Fetch visitors with LIMIT
-$query = "SELECT v.*, e.full_name AS emp_name, e.department, d.dept_color 
+$query = "SELECT v.*, e.full_name AS emp_name, e.department, d.dept_color, 
+          c.full_name AS checkin_staff, co.full_name AS checkout_staff
           FROM visitor_master v 
           LEFT JOIN users e ON v.employee_id = e.id 
           LEFT JOIN departments d ON e.department = d.dept_name
+          LEFT JOIN users c ON v.checkin_by = c.id
+          LEFT JOIN users co ON v.checkout_by = co.id
           WHERE 1=1";
 
 $final_params = [];
 if($pass_no) { $query .= " AND v.pass_no LIKE ?"; $final_params[] = "%$pass_no%"; }
 if($contact_no) { $query .= " AND v.contact_no LIKE ?"; $final_params[] = "%$contact_no%"; }
-if($from_date) { $query .= " AND DATE(v.in_time) >= ?"; $final_params[] = $from_date; }
-if($to_date) { $query .= " AND DATE(v.in_time) <= ?"; $final_params[] = $to_date; }
+if($from_date) { $query .= " AND (DATE(v.in_time) >= ? OR DATE(v.meeting_date_time) >= ?)"; $final_params[] = $from_date; $final_params[] = $from_date; }
+if($to_date) { $query .= " AND (DATE(v.in_time) <= ? OR DATE(v.meeting_date_time) <= ?)"; $final_params[] = $to_date; $final_params[] = $to_date; }
 
 $query .= " ORDER BY v.id DESC LIMIT $limit OFFSET $offset";
 
@@ -125,6 +133,9 @@ $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <th>Meeting With</th>
                                 <th>Timestamps</th>
                                 <th>Status</th>
+                                <?php if($_SESSION['role'] === 'admin'): ?>
+                                    <th>Gate Staff</th>
+                                <?php endif; ?>
                                 <th>Approval Status</th>
                                 <th>Meeting OverTime</th>
                                 <th class="text-center">Gate Actions</th>
@@ -150,20 +161,40 @@ $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </div>
                                 </td>
                                 <td>
+                                    <?php if(!empty($row['meeting_date_time'])): ?>
+                                    <div class="small mb-1">
+                                        <i class="fas fa-calendar-alt text-info me-1"></i> 
+                                        <span class="text-muted">Sch:</span> <?= date("d M, h:i A", strtotime($row['meeting_date_time'])) ?>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if(!empty($row['in_time'])): ?>
                                     <div class="small">
                                         <i class="fas fa-sign-in-alt text-success me-1"></i> 
-                                        <?= date("d M, h:i A", strtotime($row['in_time'])) ?>
+                                        <span class="text-muted">In:</span> <?= date("d M, h:i A", strtotime($row['in_time'])) ?>
                                     </div>
+                                    <?php endif; ?>
                                     <?php if(!empty($row['out_time'])): ?>
                                     <div class="small mt-1">
                                         <i class="fas fa-sign-out-alt text-danger me-1"></i> 
-                                        <?= date("d M, h:i A", strtotime($row['out_time'])) ?>
+                                        <span class="text-muted">Out:</span> <?= date("d M, h:i A", strtotime($row['out_time'])) ?>
                                     </div>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if($row['approval_status'] == 3): ?>
-                                        <span class="badge bg-info"><i class="fas fa-door-closed me-1"></i> OUTSIDE</span>
+                                    <?php 
+                                        $is_expired = false;
+                                        if($row['approval_status'] == 3) {
+                                            $scheduled_time = !empty($row['meeting_date_time']) ? strtotime($row['meeting_date_time']) : (!empty($row['in_time']) ? strtotime($row['in_time']) : time());
+                                            $current_time = time();
+                                            if(($current_time - $scheduled_time) > (12 * 3600)) {
+                                                $is_expired = true;
+                                            }
+                                        }
+                                    ?>
+                                    <?php if($is_expired): ?>
+                                        <span class="badge bg-danger"><i class="fas fa-history me-1"></i> EXPIRED</span>
+                                    <?php elseif($row['approval_status'] == 3): ?>
+                                        <span class="badge bg-info"><i class="fas fa-calendar-alt me-1"></i> SCHEDULED</span>
                                     <?php elseif(empty($row['out_time'])): ?>
                                         <span class="badge bg-success"><i class="fas fa-door-open me-1"></i> INSIDE</span>
                                     <?php else: ?>
@@ -171,6 +202,16 @@ $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?php endif; ?>
 
                                 </td>
+                                <?php if($_SESSION['role'] === 'admin'): ?>
+                                <td>
+                                    <div class="small">
+                                        <span class="text-muted"><?= $row['approval_status'] == 3 ? 'Scheduled By:' : 'In:' ?></span> <?= htmlspecialchars($row['checkin_staff'] ?: '—') ?>
+                                    </div>
+                                    <div class="small mt-1">
+                                        <span class="text-muted">Out:</span> <?= htmlspecialchars($row['checkout_staff'] ?: '—') ?>
+                                    </div>
+                                </td>
+                                <?php endif; ?>
                                 <!-- Approval Status Column -->
                                     <td>
                                         <?php if($row['approval_status'] == 0): ?>
@@ -222,14 +263,20 @@ $visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <i class="fas fa-history"></i>
                                             </button>
 
-                                            <?php if(empty($row['out_time'])): ?>
+                                            <?php if(empty($row['out_time']) && $_SESSION['role'] === 'timeoffice'): ?>
                                                 <button class="btn btn-danger btn-sm checkoutBtn" 
                                                     title="End Visitor Meeting (Gate)"
                                                     data-pass="<?= $row['pass_no'] ?>">
                                                     <i class="fas fa-sign-out-alt"></i>
                                                 </button>
                                             <?php endif; ?>
-
+                                        <?php elseif($row['approval_status'] == 3 && $_SESSION['role'] === 'timeoffice' && !$is_expired): ?>
+                                            <!-- SCHEDULED — show Edit to check-in -->
+                                            <a href="add_visitor_form.php?id=<?= $row['id'] ?>" 
+                                               class="btn btn-primary btn-sm" 
+                                               title="Process Entry / Edit Details">
+                                                <i class="fas fa-edit me-1"></i> check-IN
+                                            </a>
                                         <?php else: ?>
                                             <!-- PENDING (0) or REJECTED (2) — no actions -->
                                             <span class="text-muted">—</span>

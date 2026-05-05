@@ -28,7 +28,7 @@ $disc_count    = (int)($_POST['disc_count'] ?? 0);
 $mobile_count  = (int)($_POST['mobile_count'] ?? 0);
 $charger_count = (int)($_POST['charger_count'] ?? 0);
 
-$in_time = trim($_POST['in_time'] ?? date("Y-m-d H:i:s"));
+$in_time = !empty($_POST['in_time']) ? date("Y-m-d H:i:s", strtotime($_POST['in_time'])) : date("Y-m-d H:i:s");
 
 $devices = isset($_POST['devices']) ? implode(",", $_POST['devices']) : '';
 
@@ -112,6 +112,7 @@ try {
             img_capture   = ?,
             location      = ?,
             approval_status = 1,
+            checkin_by    = ?,
             id_upload     = COALESCE(?, id_upload)
             WHERE id = ?");
 
@@ -136,6 +137,7 @@ try {
             $person_to_meet,
             $img_capture,
             $location,
+            $_SESSION['user_id'] ?? null,
             $id_file_name,
             $id
         ]);
@@ -175,9 +177,10 @@ try {
             person_to_meet,
             img_capture,
             location,
+            checkin_by,
             approval_status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
 
         $stmt->execute([
             $pass_no,
@@ -200,7 +203,8 @@ try {
             $id_file_name,
             $person_to_meet,
             $img_capture,
-            $location
+            $location,
+            $_SESSION['user_id'] ?? null
         ]);
 
         $new_visitor_id = $con->lastInsertId();

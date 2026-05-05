@@ -14,7 +14,7 @@ $current_emp = $emp_stmt->fetch(PDO::FETCH_ASSOC);
 // Fetch ALL visitors this employee has EVER met for summary stats
 $summary_query = "SELECT DISTINCT v.* FROM visitor_master v 
                   LEFT JOIN visitor_handoffs h ON v.id = h.visitor_id 
-                  WHERE (h.emp_id = ? OR v.employee_id = ?) AND v.approval_status = 1";
+                  WHERE (h.emp_id = ? OR v.employee_id = ?) AND v.approval_status IN (1, 2, 3)";
 $summary_stmt = $con->prepare($summary_query);
 $summary_stmt->execute([$emp_id, $emp_id]);
 $all_my_visitors = $summary_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -38,14 +38,15 @@ $total_records = $total_count;
 $total_pages = ceil($total_records / $limit);
 
 // Fetch visitors with assignment details and current host info
-$query = "SELECT v.*, h.notes AS handover_notes, ash.full_name AS assigner_name, curr_emp.full_name AS current_host_name
+$query = "SELECT v.*, h.notes AS handover_notes, ash.full_name AS assigner_name, 
+          curr_emp.full_name AS current_host_name, cstaff.full_name AS checkin_staff_name
           FROM visitor_master v 
           LEFT JOIN visitor_handoffs hm ON v.id = hm.visitor_id AND hm.emp_id = ?
           LEFT JOIN visitor_handoffs h ON v.id = h.visitor_id AND h.emp_id = ?
-        --    AND h.check_out_time IS NULL
           LEFT JOIN users ash ON h.assigned_by = ash.id
           LEFT JOIN users curr_emp ON v.employee_id = curr_emp.id
-          WHERE v.approval_status = 1 AND (hm.emp_id IS NOT NULL OR v.employee_id = ?)
+          LEFT JOIN users cstaff ON v.checkin_by = cstaff.id
+          WHERE v.approval_status IN (1, 2, 3) AND (hm.emp_id IS NOT NULL OR v.employee_id = ?)
           GROUP BY v.id
           ORDER BY v.id DESC LIMIT $limit OFFSET $offset";
 $stmt = $con->prepare($query);
@@ -143,7 +144,21 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="small text-success"><i class="fas fa-sign-in-alt me-1"></i> <?= date("h:i A", strtotime($v['in_time'])) ?></div>
+                                    <div class="small text-success">
+                                        <i class="fas fa-sign-in-alt me-1"></i> 
+                                        <?php 
+                                            if(!empty($v['in_time'])) {
+                                                echo date("d M, h:i A", strtotime($v['in_time']));
+                                            } elseif(!empty($v['meeting_date_time'])) {
+                                                echo '<span class="text-info">Sch: ' . date("d M, h:i A", strtotime($v['meeting_date_time'])) . '</span>';
+                                            } else {
+                                                echo '—';
+                                            }
+                                        ?>
+                                    </div>
+                                    <div class="small mt-1 text-muted">
+                                        <i class="fas fa-user-check me-1"></i> By: <strong><?= htmlspecialchars($v['checkin_staff_name'] ?: 'N/A') ?></strong>
+                                    </div>
                                         <?php if(!empty($v['meeting_out_time'])): ?>
                                             <div class="small text-danger mt-1">
                                                 <i class="fas fa-sign-out-alt me-1"></i> 
@@ -152,7 +167,11 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if(empty($v['meeting_out_time'])): ?>
+                                    <?php if($v['approval_status'] == 2): ?>
+                                        <span class="badge bg-soft-danger text-danger small"><i class="fas fa-times-circle me-1"></i> Rejected</span>
+                                    <?php elseif($v['approval_status'] == 3): ?>
+                                        <span class="badge bg-soft-info text-info small"><i class="fas fa-calendar-alt me-1"></i> Scheduled</span>
+                                    <?php elseif(empty($v['meeting_out_time'])): ?>
                                         <span class="pulsing-dot me-1"></span>
                                         <span class="text-success small fw-bold">In Meeting</span>
                                     <?php else: ?>

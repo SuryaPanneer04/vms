@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 29, 2026 at 08:51 AM
+-- Generation Time: May 04, 2026 at 06:09 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -258,7 +258,14 @@ INSERT INTO `visitor_handoffs` (`id`, `visitor_id`, `emp_id`, `assigned_by`, `ch
 (17, 42, 5, 5, '2026-04-28 13:57:00', '2026-04-28 14:15:46', 'Handoff', '2026-04-28 08:45:46'),
 (18, 42, 11, 5, '2026-04-28 14:15:46', '2026-04-28 14:16:00', '', '2026-04-28 08:45:46'),
 (19, 43, 19, 19, '2026-04-28 14:23:00', '2026-04-28 14:25:57', 'Initial Meeting', '2026-04-28 08:54:19'),
-(20, 43, 12, 19, '2026-04-28 14:25:57', '2026-04-28 14:28:00', '', '2026-04-28 08:55:57');
+(20, 43, 12, 19, '2026-04-28 14:25:57', '2026-04-28 14:28:00', '', '2026-04-28 08:55:57'),
+(21, 44, 5, 5, '2026-04-30 10:08:00', '2026-04-30 10:11:39', 'Initial Meeting', '2026-04-30 04:39:20'),
+(22, 44, 11, 5, '2026-04-30 10:11:39', '2026-04-30 10:12:18', '', '2026-04-30 04:41:39'),
+(23, 44, 26, 11, '2026-04-30 10:12:18', '2026-04-30 10:19:00', '', '2026-04-30 04:42:18'),
+(24, 45, 5, 5, '2026-05-01 10:07:00', NULL, 'Initial Meeting', '2026-04-30 06:52:46'),
+(25, 46, 5, 5, '2026-04-30 12:58:00', '2026-04-30 13:01:26', 'Initial Meeting', '2026-04-30 07:28:44'),
+(26, 46, 11, 5, '2026-04-30 13:01:26', '2026-04-30 13:02:09', '', '2026-04-30 07:31:26'),
+(27, 46, 19, 11, '2026-04-30 13:02:09', '2026-04-30 13:02:00', '', '2026-04-30 07:32:09');
 
 -- --------------------------------------------------------
 
@@ -278,6 +285,7 @@ CREATE TABLE `visitor_master` (
   `visitor_name` varchar(100) NOT NULL,
   `contact_no` varchar(15) NOT NULL,
   `email` varchar(100) DEFAULT NULL,
+  `meeting_date_time` datetime DEFAULT NULL,
   `devices` text DEFAULT NULL,
   `id_type` varchar(50) DEFAULT NULL,
   `id_upload` varchar(255) DEFAULT NULL,
@@ -293,16 +301,17 @@ CREATE TABLE `visitor_master` (
   `disc_count` int(11) DEFAULT NULL,
   `laptop_count` int(11) DEFAULT NULL,
   `approval_status` tinyint(4) DEFAULT 0 COMMENT '0=Pending, 1=Approved, 2=Rejected,\r\n3= Schedule',
-  `meeting_out_time` datetime DEFAULT NULL
+  `meeting_out_time` datetime DEFAULT NULL,
+  `checkin_by` int(11) DEFAULT NULL,
+  `checkout_by` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `visitor_master`
 --
 
-INSERT INTO `visitor_master` (`id`, `pass_no`, `img_capture`, `person_to_meet`, `purpose`, `visitor_type`, `company_name`, `location`, `visitor_name`, `contact_no`, `email`, `devices`, `id_type`, `id_upload`, `status`, `in_time`, `out_time`, `created_at`, `vehicle_type`, `vehicle_number`, `employee_id`, `mobile_count`, `charger_count`, `disc_count`, `laptop_count`, `approval_status`, `meeting_out_time`) VALUES
-(42, 'VMS_506963', 'img_20260428_135819_VMS_506963.jpeg', 'sundar', 'interview', 'Visitor', 'gentriq', 'chennai', 'Divya', '9384178400', 'suryapanneer04@gmail.com', '', 'Aadhar', NULL, 'Pending', '2026-04-28 13:57:00', '2026-04-28 14:21:00', '2026-04-28 08:28:19', '', '', 11, 0, 0, 0, 0, 1, '2026-04-28 14:16:00'),
-(43, 'VMS_432758', 'img_20260428_142419_VMS_432758.jpeg', 'Toby Flenderson', 'addada', 'Visitor', 'gentriq', 'chennai', 'Meenatchi', '9384178421', 'suryapanneer04@gmail.com', '', 'Aadhar', NULL, 'Pending', '2026-04-28 14:23:00', '2026-04-28 14:31:00', '2026-04-28 08:54:19', '', '', 12, 0, 0, 0, 0, 1, '2026-04-28 14:28:00');
+INSERT INTO `visitor_master` (`id`, `pass_no`, `img_capture`, `person_to_meet`, `purpose`, `visitor_type`, `company_name`, `location`, `visitor_name`, `contact_no`, `email`, `meeting_date_time`, `devices`, `id_type`, `id_upload`, `status`, `in_time`, `out_time`, `created_at`, `vehicle_type`, `vehicle_number`, `employee_id`, `mobile_count`, `charger_count`, `disc_count`, `laptop_count`, `approval_status`, `meeting_out_time`, `checkin_by`, `checkout_by`) VALUES
+(46, 'VMS_140154', 'img_20260430_125844_VMS_140154.jpeg', 'sundar', 'interview', 'Vendor', 'BB', 'chennai', 'surya p', '9384178442', 'suryapanneer04@gmail.com', '2026-04-30 12:56:00', '', 'Aadhar', NULL, 'Pending', '2026-04-30 12:58:00', '2026-04-30 15:31:00', '2026-04-30 07:26:38', '', '', 19, 0, 0, 0, 0, 1, '2026-04-30 13:02:00', 22, 22);
 
 --
 -- Indexes for dumped tables
@@ -389,13 +398,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `visitor_handoffs`
 --
 ALTER TABLE `visitor_handoffs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `visitor_master`
 --
 ALTER TABLE `visitor_master`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

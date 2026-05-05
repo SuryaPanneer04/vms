@@ -287,6 +287,11 @@ $devices_arr = !empty($visitor_data['devices']) ? explode(",", $visitor_data['de
                                         <span class="input-group-text bg-light border-0"><i class="fas fa-clock"></i></span>
                                         <input type="datetime-local" class="form-control shadow-sm" name="in_time" value="<?= $checkin_time ?>">
                                     </div>
+                                    <?php if($is_scheduled && !empty($visitor_data['meeting_date_time'])): ?>
+                                        <div class="mt-1 small text-info fw-bold">
+                                            <i class="fas fa-calendar-check me-1"></i> Scheduled for: <?= date("d M Y, h:i A", strtotime($visitor_data['meeting_date_time'])) ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="col-12 text-end mt-4">
                                     <button type="reset" class="btn btn-light px-4 me-2">Clear Form</button>

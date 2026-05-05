@@ -141,7 +141,16 @@ include("includes/sidebar.php");
                                     <span class="badge fw-normal small" style="background: <?= !empty($v['dept_color']) ? $v['dept_color'] : '#f8f9fa' ?>; color: <?= !empty($v['dept_color']) ? '#fff' : '#212529' ?>;"><?= htmlspecialchars($v['host_dept']) ?></span>
                                 </td>
                                 <td><?= htmlspecialchars($v['purpose']) ?></td>
-                                <td><?= date("d M, h:i A", strtotime($v['in_time'])) ?></td>
+                                <td>
+                                    <?php if(!empty($v['in_time'])): ?>
+                                        <?= date("d M, h:i A", strtotime($v['in_time'])) ?>
+                                    <?php elseif(!empty($v['meeting_date_time'])): ?>
+                                        <div class="text-info small fw-bold">Scheduled:</div>
+                                        <?= date("d M, h:i A", strtotime($v['meeting_date_time'])) ?>
+                                    <?php else: ?>
+                                        —
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= $v['out_time'] ? date("d M, h:i A", strtotime($v['out_time'])) : '<span class="text-danger small">In-Premise</span>' ?></td>
                                 <td class="text-center pe-4">
                                     <?php 

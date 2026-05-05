@@ -19,7 +19,7 @@ if (isset($_POST['login'])) {
             $_SESSION['role'] = $user['role'];
             $_SESSION['department'] = $user['department'];
             $_SESSION['designation'] = $user['designation'];
-
+            
             if ($_SESSION['role'] === 'admin') {
                 header("Location: index.php");
             } elseif ($_SESSION['role'] === 'timeoffice') {
@@ -38,7 +38,6 @@ if (isset($_POST['login'])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -89,15 +88,8 @@ if (isset($_POST['login'])) {
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .brand-logo {
@@ -228,7 +220,6 @@ if (isset($_POST['login'])) {
         }
     </style>
 </head>
-
 <body>
     <div class="bg-blobs">
         <div class="blob-1"></div>
@@ -275,12 +266,11 @@ if (isset($_POST['login'])) {
                     </button>
                 </div>
             </form>
-
+            
             <div class="text-center mt-4">
                 <small style="color: #64748b">VMS v2.0 &copy; <?= date('Y') ?></small>
             </div>
         </div>
     </div>
 </body>
-
 </html>

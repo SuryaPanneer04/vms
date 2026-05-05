@@ -60,7 +60,7 @@ try {
 
         WHERE 
         -- v.approval_status = 1 AND
-         (
+         
             v.employee_id = :id 
             OR EXISTS (
                 SELECT 1 
@@ -68,7 +68,8 @@ try {
                 WHERE vh.visitor_id = v.id 
                 AND vh.emp_id = :id
             )
-        );
+        
+        ORDER BY v.id DESC;
     ");
     $query->bindParam(':id', $userId);
     $query->execute();

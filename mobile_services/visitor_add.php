@@ -13,6 +13,7 @@ $companyName = $_POST['company_name'] ?? $_GET['company_name'] ?? '';
 $email = $_POST['email'] ?? $_GET['email'] ?? '';
 $reason = $_POST['reason'] ?? $_GET['reason'] ?? '';
 $visitorType = $_POST['visitor_type'] ?? $_GET['visitor_type'] ?? '';
+$requestDateTime = $_POST['request_date_time'] ?? $_GET['request_date_time'] ?? '';
 
 
 try {
@@ -23,7 +24,8 @@ try {
         empty($companyName) ||
         empty($email) ||
         empty($reason) ||
-        empty($visitorType)
+        empty($visitorType) ||
+        empty($requestDateTime)
     ) {
         echo json_encode([
             'status' => false,
@@ -34,9 +36,9 @@ try {
     //	approval_status = 3 TASK SCUDULE BY EMPLOYEE
 
     $query = $con->prepare("INSERT INTO visitor_master 
-        (employee_id, visitor_name, purpose, contact_no, company_name, email, visitor_type, 	approval_status)
+        (employee_id, visitor_name, purpose, contact_no, company_name, email, visitor_type, approval_status, meeting_date_time)
         VALUES 
-        (:employeeId, :name, :reason, :contact_no, :company_name, :email, :visitor_type, 3)
+        (:employeeId, :name, :reason, :contact_no, :company_name, :email, :visitor_type, 3, :meeting_date_time)
     ");
 
     $query->bindParam(':employeeId', $employeeId);
@@ -46,6 +48,7 @@ try {
     $query->bindParam(':company_name', $companyName);
     $query->bindParam(':email', $email);
     $query->bindParam(':visitor_type', $visitorType);
+    $query->bindParam(':meeting_date_time', $requestDateTime);
 
     if ($query->execute()) {
         echo json_encode([

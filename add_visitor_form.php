@@ -112,14 +112,14 @@ $devices_arr = !empty($visitor_data['devices']) ? explode(",", $visitor_data['de
                                     <label class="form-label fw-bold">Contact Number <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light border-0"><i class="fas fa-phone"></i></span>
-                                        <input type="text" class="form-control shadow-sm" name="contact_no" id="contact_no" placeholder="Primary Phone" value="<?= htmlspecialchars($visitor_data['contact_no'] ?? '') ?>" required>
+                                        <input type="text" class="form-control shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="contact_no" id="contact_no" placeholder="Primary Phone" value="<?= htmlspecialchars($visitor_data['contact_no'] ?? '') ?>" required <?= $is_scheduled ? 'readonly' : '' ?>>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Visitor Category <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light border-0"><i class="fas fa-users"></i></span>
-                                        <select class="form-select shadow-sm" name="visitor_type" id="visitor_type" required>
+                                        <select class="form-select shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="visitor_type" id="visitor_type" required <?= $is_scheduled ? 'style="pointer-events: none;" tabindex="-1"' : '' ?>>
                                             <option value="">Select Category</option>
                                             <option value="Client" <?= ($visitor_data['visitor_type'] ?? '') == 'Client' ? 'selected' : '' ?>>Client / Partner</option>
                                             <option value="Vendor" <?= ($visitor_data['visitor_type'] ?? '') == 'Vendor' ? 'selected' : '' ?>>Vendor / Service</option>
@@ -129,23 +129,34 @@ $devices_arr = !empty($visitor_data['devices']) ? explode(",", $visitor_data['de
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Visitor Name <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control shadow-sm" name="visitor_name" id="visitor_name" placeholder="Full Name" value="<?= htmlspecialchars($visitor_data['visitor_name'] ?? '') ?>" required>
+                                    <input type="text" class="form-control shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="visitor_name" id="visitor_name" placeholder="Full Name" value="<?= htmlspecialchars($visitor_data['visitor_name'] ?? '') ?>" required <?= $is_scheduled ? 'readonly' : '' ?>>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Gender <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0"><i class="fas fa-venus-mars"></i></span>
+                                        <select class="form-select shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="gender" id="gender" required <?= $is_scheduled ? 'style="pointer-events: none;" tabindex="-1"' : '' ?>>
+                                            <option value="Male" <?= ($visitor_data['gender'] ?? '') == 'Male' ? 'selected' : '' ?>>Male</option>
+                                            <option value="Female" <?= ($visitor_data['gender'] ?? '') == 'Female' ? 'selected' : '' ?>>Female</option>
+                                            <option value="Other" <?= ($visitor_data['gender'] ?? '') == 'Other' ? 'selected' : '' ?>>Other</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Organization / Company</label>
-                                    <input type="text" class="form-control shadow-sm" name="company_name" id="company_name" placeholder="Business Name" value="<?= htmlspecialchars($visitor_data['company_name'] ?? '') ?>">
+                                    <input type="text" class="form-control shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="company_name" id="company_name" placeholder="Business Name" value="<?= htmlspecialchars($visitor_data['company_name'] ?? '') ?>" <?= $is_scheduled ? 'readonly' : '' ?>>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Email Address</label>
-                                    <input type="email" class="form-control shadow-sm" name="email" id="email" placeholder="email@example.com" value="<?= htmlspecialchars($visitor_data['email'] ?? '') ?>">
+                                    <input type="email" class="form-control shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="email" id="email" placeholder="email@example.com" value="<?= htmlspecialchars($visitor_data['email'] ?? '') ?>" <?= $is_scheduled ? 'readonly' : '' ?>>
                                 </div>
                                 <div class="col-md-12">
                                     <label class="form-label fw-bold">Purpose of Visit <span class="text-danger">*</span></label>
-                                    <textarea class="form-control shadow-sm" name="purpose" rows="2" placeholder="Describe the reason for meeting..." required><?= htmlspecialchars($visitor_data['purpose'] ?? '') ?></textarea>
+                                    <textarea class="form-control shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="purpose" rows="2" placeholder="Describe the reason for meeting..." required <?= $is_scheduled ? 'readonly' : '' ?>><?= htmlspecialchars($visitor_data['purpose'] ?? '') ?></textarea>
                                 </div>
                                 <div class="col-md-12">
                                     <label class="form-label fw-bold">Location</label>
-                                    <input type="text" class="form-control shadow-sm" name="location" id="location" placeholder="e.g. Chennai, Bangalore, or Branch Name" value="<?= htmlspecialchars($visitor_data['location'] ?? '') ?>">
+                                    <input type="text" class="form-control shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" name="location" id="location" placeholder="e.g. Chennai, Bangalore, or Branch Name" value="<?= htmlspecialchars($visitor_data['location'] ?? '') ?>" <?= $is_scheduled ? 'readonly' : '' ?>>
                                 </div>
                             </div>
                         </div>
@@ -242,7 +253,7 @@ $devices_arr = !empty($visitor_data['devices']) ? explode(",", $visitor_data['de
                             <div class="row g-4">
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Filter by Department</label>
-                                    <select id="filter_dept" class="form-select shadow-sm">
+                                    <select id="filter_dept" class="form-select shadow-sm <?= $is_scheduled ? 'bg-light' : '' ?>" <?= $is_scheduled ? 'style="pointer-events: none;" tabindex="-1"' : '' ?>>
                                         <option value="">All Departments</option>
                                         <?php foreach($departments_list as $d): ?>
                                             <option value="<?= $d['dept_name'] ?>" 
@@ -257,7 +268,7 @@ $devices_arr = !empty($visitor_data['devices']) ? explode(",", $visitor_data['de
                                 
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Host Employee <span class="text-danger">*</span></label>
-                                    <select name="employee_id" id="employee_id" class="form-select shadow-sm select2" required>
+                                    <select name="employee_id" id="employee_id" class="form-select shadow-sm select2 <?= $is_scheduled ? 'bg-light' : '' ?>" required <?= $is_scheduled ? 'style="pointer-events: none;" tabindex="-1"' : '' ?>>
                                         <option value="">Choose Employee</option>
                                         <?php foreach($employees as $e): ?>
                                             <option value="<?= $e['id'] ?>" 
@@ -419,6 +430,7 @@ document.getElementById("contact_no").addEventListener("keyup", function(){
         .then(data => {
             if(data.status == "found"){
                   document.getElementById("visitor_name").value = data.visitor_name || '';
+                  document.getElementById("gender").value = data.gender || 'Male';
                   document.querySelector("[name='visitor_type']").value = data.visitor_type || '';
                   document.getElementById("company_name").value = data.company_name || '';
                   document.getElementById("email").value = data.email || '';

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 04, 2026 at 06:09 AM
+-- Generation Time: May 05, 2026 at 09:09 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -255,17 +255,12 @@ CREATE TABLE `visitor_handoffs` (
 --
 
 INSERT INTO `visitor_handoffs` (`id`, `visitor_id`, `emp_id`, `assigned_by`, `check_in_time`, `check_out_time`, `notes`, `created_at`) VALUES
-(17, 42, 5, 5, '2026-04-28 13:57:00', '2026-04-28 14:15:46', 'Handoff', '2026-04-28 08:45:46'),
-(18, 42, 11, 5, '2026-04-28 14:15:46', '2026-04-28 14:16:00', '', '2026-04-28 08:45:46'),
-(19, 43, 19, 19, '2026-04-28 14:23:00', '2026-04-28 14:25:57', 'Initial Meeting', '2026-04-28 08:54:19'),
-(20, 43, 12, 19, '2026-04-28 14:25:57', '2026-04-28 14:28:00', '', '2026-04-28 08:55:57'),
-(21, 44, 5, 5, '2026-04-30 10:08:00', '2026-04-30 10:11:39', 'Initial Meeting', '2026-04-30 04:39:20'),
-(22, 44, 11, 5, '2026-04-30 10:11:39', '2026-04-30 10:12:18', '', '2026-04-30 04:41:39'),
-(23, 44, 26, 11, '2026-04-30 10:12:18', '2026-04-30 10:19:00', '', '2026-04-30 04:42:18'),
-(24, 45, 5, 5, '2026-05-01 10:07:00', NULL, 'Initial Meeting', '2026-04-30 06:52:46'),
-(25, 46, 5, 5, '2026-04-30 12:58:00', '2026-04-30 13:01:26', 'Initial Meeting', '2026-04-30 07:28:44'),
-(26, 46, 11, 5, '2026-04-30 13:01:26', '2026-04-30 13:02:09', '', '2026-04-30 07:31:26'),
-(27, 46, 19, 11, '2026-04-30 13:02:09', '2026-04-30 13:02:00', '', '2026-04-30 07:32:09');
+(41, 54, 5, 5, '2026-05-05 11:22:00', '2026-05-05 11:23:45', 'Initial Meeting', '2026-05-05 05:52:46'),
+(42, 54, 11, 5, '2026-05-05 11:23:45', '2026-05-05 11:26:02', '', '2026-05-05 05:53:45'),
+(43, 54, 5, 11, '2026-05-05 11:26:02', '2026-05-05 11:32:42', '', '2026-05-05 05:56:02'),
+(44, 54, 11, 5, '2026-05-05 11:32:42', '2026-05-05 11:33:00', '', '2026-05-05 06:02:42'),
+(45, 58, 5, 5, '2026-05-05 12:17:00', '2026-05-05 12:18:57', 'Initial Meeting', '2026-05-05 06:47:47'),
+(46, 58, 11, 5, '2026-05-05 12:18:57', '2026-05-05 12:19:00', '', '2026-05-05 06:48:57');
 
 -- --------------------------------------------------------
 
@@ -283,6 +278,7 @@ CREATE TABLE `visitor_master` (
   `company_name` varchar(100) DEFAULT NULL,
   `location` varchar(100) DEFAULT NULL,
   `visitor_name` varchar(100) NOT NULL,
+  `gender` enum('Male','Female','Other') DEFAULT 'Male',
   `contact_no` varchar(15) NOT NULL,
   `email` varchar(100) DEFAULT NULL,
   `meeting_date_time` datetime DEFAULT NULL,
@@ -310,8 +306,9 @@ CREATE TABLE `visitor_master` (
 -- Dumping data for table `visitor_master`
 --
 
-INSERT INTO `visitor_master` (`id`, `pass_no`, `img_capture`, `person_to_meet`, `purpose`, `visitor_type`, `company_name`, `location`, `visitor_name`, `contact_no`, `email`, `meeting_date_time`, `devices`, `id_type`, `id_upload`, `status`, `in_time`, `out_time`, `created_at`, `vehicle_type`, `vehicle_number`, `employee_id`, `mobile_count`, `charger_count`, `disc_count`, `laptop_count`, `approval_status`, `meeting_out_time`, `checkin_by`, `checkout_by`) VALUES
-(46, 'VMS_140154', 'img_20260430_125844_VMS_140154.jpeg', 'sundar', 'interview', 'Vendor', 'BB', 'chennai', 'surya p', '9384178442', 'suryapanneer04@gmail.com', '2026-04-30 12:56:00', '', 'Aadhar', NULL, 'Pending', '2026-04-30 12:58:00', '2026-04-30 15:31:00', '2026-04-30 07:26:38', '', '', 19, 0, 0, 0, 0, 1, '2026-04-30 13:02:00', 22, 22);
+INSERT INTO `visitor_master` (`id`, `pass_no`, `img_capture`, `person_to_meet`, `purpose`, `visitor_type`, `company_name`, `location`, `visitor_name`, `gender`, `contact_no`, `email`, `meeting_date_time`, `devices`, `id_type`, `id_upload`, `status`, `in_time`, `out_time`, `created_at`, `vehicle_type`, `vehicle_number`, `employee_id`, `mobile_count`, `charger_count`, `disc_count`, `laptop_count`, `approval_status`, `meeting_out_time`, `checkin_by`, `checkout_by`) VALUES
+(54, 'VMS_145196', 'img_20260505_112246_VMS_145196.jpeg', 'sundar', 'interview', 'Visitor', 'BB', 'chennai', 'Mithran', 'Male', '9384178442', 'suryapanneer04@gmail.com', NULL, '', 'PAN', NULL, 'Pending', '2026-05-05 11:22:00', '2026-05-05 11:34:00', '2026-05-05 05:52:46', '', '', 11, 0, 0, 0, 0, 1, '2026-05-05 11:33:00', 22, 22),
+(58, 'VMS_796237', 'img_20260505_121747_VMS_796237.jpeg', 'sundar', 'interview', 'Visitor', 'BB', 'chennai', 'surya', 'Male', '9384178442', 'suryapanneer04@gmail.com', '2026-05-05 12:16:00', '', 'PAN', NULL, 'Pending', '2026-05-05 12:17:00', '2026-05-05 12:20:00', '2026-05-05 06:46:58', '', '', 11, 0, 0, 0, 0, 1, '2026-05-05 12:19:00', 22, 22);
 
 --
 -- Indexes for dumped tables
@@ -398,13 +395,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `visitor_handoffs`
 --
 ALTER TABLE `visitor_handoffs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT for table `visitor_master`
 --
 ALTER TABLE `visitor_master`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

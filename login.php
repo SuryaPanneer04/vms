@@ -23,7 +23,7 @@ if (isset($_POST['login'])) {
             if ($_SESSION['role'] === 'admin') {
                 header("Location: index.php");
             } elseif ($_SESSION['role'] === 'timeoffice') {
-                header("Location: add_visitor_form.php");
+                header("Location: timeoffice_dashboard.php");
             } else {
                 header("Location: employee_portal.php");
             }

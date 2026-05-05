@@ -22,22 +22,23 @@ if (empty($visitor_id) || empty($to_emp_id)) {
 try {
     $con->beginTransaction();
 
-    // 1. Close current meeting session for the current employee
-    $stmt = $con->prepare("SELECT id FROM visitor_handoffs WHERE visitor_id = ? AND check_out_time IS NULL ORDER BY id DESC LIMIT 1");
-    $stmt->execute([$visitor_id]);
-    $active_id = $stmt->fetchColumn();
+    // 1. Close ALL current active meeting sessions for this visitor
+    $upd = $con->prepare("UPDATE visitor_handoffs SET check_out_time = ? WHERE visitor_id = ? AND check_out_time IS NULL");
+    $upd->execute([$now, $visitor_id]);
 
-    if ($active_id) {
-        $upd = $con->prepare("UPDATE visitor_handoffs SET check_out_time = ? WHERE id = ?");
-        $upd->execute([$now, $active_id]);
-    } else {
-        // Fallback: if no active segment found, create one and close it immediately to maintain history
-        $v_stmt = $con->prepare("SELECT in_time FROM visitor_master WHERE id = ?");
-        $v_stmt->execute([$visitor_id]);
-        $in_time = $v_stmt->fetchColumn() ?: $now;
+    // Fallback: if no active segment was found (it would have been updated above, so we check rowCount)
+    if ($upd->rowCount() == 0) {
+        // Only if it's the first time and no record exists at all
+        $check_total = $con->prepare("SELECT COUNT(*) FROM visitor_handoffs WHERE visitor_id = ?");
+        $check_total->execute([$visitor_id]);
+        if ($check_total->fetchColumn() == 0) {
+            $v_stmt = $con->prepare("SELECT in_time FROM visitor_master WHERE id = ?");
+            $v_stmt->execute([$visitor_id]);
+            $in_time = $v_stmt->fetchColumn() ?: $now;
 
-        $ins_old = $con->prepare("INSERT INTO visitor_handoffs (visitor_id, emp_id, check_in_time, check_out_time, assigned_by, notes) VALUES (?, ?, ?, ?, ?, ?)");
-        $ins_old->execute([$visitor_id, $from_emp_id, $in_time, $now, $from_emp_id, "Handoff"]);
+            $ins_old = $con->prepare("INSERT INTO visitor_handoffs (visitor_id, emp_id, check_in_time, check_out_time, assigned_by, notes) VALUES (?, ?, ?, ?, ?, ?)");
+            $ins_old->execute([$visitor_id, $from_emp_id, $in_time, $now, $from_emp_id, "Handoff"]);
+        }
     }
 
     // 2. Insert new session for the TO employee

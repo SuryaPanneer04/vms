@@ -38,19 +38,22 @@ $total_records = $total_count;
 $total_pages = ceil($total_records / $limit);
 
 // Fetch visitors with assignment details and current host info
-$query = "SELECT v.*, h.notes AS handover_notes, ash.full_name AS assigner_name, 
+$query = "SELECT v.*, 
+          (SELECT u.full_name FROM visitor_handoffs vh JOIN users u ON vh.assigned_by = u.id WHERE vh.visitor_id = v.id AND vh.emp_id = ? ORDER BY vh.id DESC LIMIT 1) AS assigner_name,
+          (SELECT vh.notes FROM visitor_handoffs vh WHERE vh.visitor_id = v.id AND vh.emp_id = ? ORDER BY vh.id DESC LIMIT 1) AS handover_notes,
+          (SELECT vh.check_in_time FROM visitor_handoffs vh WHERE vh.visitor_id = v.id AND vh.emp_id = ? ORDER BY vh.id DESC LIMIT 1) AS my_start_time,
+          (SELECT vh.check_out_time FROM visitor_handoffs vh WHERE vh.visitor_id = v.id AND vh.emp_id = ? ORDER BY vh.id DESC LIMIT 1) AS my_end_time,
           curr_emp.full_name AS current_host_name, cstaff.full_name AS checkin_staff_name
           FROM visitor_master v 
-          LEFT JOIN visitor_handoffs hm ON v.id = hm.visitor_id AND hm.emp_id = ?
-          LEFT JOIN visitor_handoffs h ON v.id = h.visitor_id AND h.emp_id = ?
-          LEFT JOIN users ash ON h.assigned_by = ash.id
           LEFT JOIN users curr_emp ON v.employee_id = curr_emp.id
           LEFT JOIN users cstaff ON v.checkin_by = cstaff.id
-          WHERE v.approval_status IN (1, 2, 3) AND (hm.emp_id IS NOT NULL OR v.employee_id = ?)
+          WHERE v.approval_status IN (1, 2, 3) 
+          AND (v.employee_id = ? OR EXISTS (SELECT 1 FROM visitor_handoffs vh WHERE vh.visitor_id = v.id AND vh.emp_id = ?))
           GROUP BY v.id
           ORDER BY v.id DESC LIMIT $limit OFFSET $offset";
 $stmt = $con->prepare($query);
-$stmt->execute([$emp_id, $emp_id, $emp_id]);
+// We need to pass the emp_id 6 times for the subqueries and WHERE clause
+$stmt->execute([$emp_id, $emp_id, $emp_id, $emp_id, $emp_id, $emp_id]);
 $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -108,8 +111,9 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             <?= strtoupper(substr($v['visitor_name'], 0, 1)) ?>
                                         </div>
                                         <div>
-                                            <div class="fw-bold"><?= htmlspecialchars($v['visitor_name']) ?></div>
-                                            <div class="small text-muted"><i class="fas fa-envelope me-1"></i> <?= htmlspecialchars($v['email'] ?: 'No Email') ?></div>
+                                            <div class="fw-bold text-dark"><?= htmlspecialchars($v['visitor_name']) ?></div>
+                                            <div class="small text-muted"><i class="fas fa-building me-1"></i> <?= htmlspecialchars($v['company_name'] ?: 'Independent') ?></div>
+                                            <div class="small text-primary mt-1 fw-medium"><i class="fas fa-comment-dots me-1"></i> <?= htmlspecialchars($v['purpose']) ?></div>
                                             <div class="small bg-primary bg-opacity-10 text-primary px-2 rounded-pill d-inline-block mt-1">#<?= $v['pass_no'] ?></div>
                                         </div>
                                     </div>
@@ -125,6 +129,11 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <div class="small mt-1 text-info">
                                             <i class="fas fa-reply me-1"></i> From: <strong><?= htmlspecialchars($v['assigner_name']) ?></strong>
                                         </div>
+                                        <?php if(!empty($v['handover_notes'])): ?>
+                                            <div class="small mt-1 text-muted ms-3 italic" style="font-size: 0.75rem;">
+                                                <i class="fas fa-sticky-note me-1"></i> "<?= htmlspecialchars($v['handover_notes']) ?>"
+                                            </div>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -159,18 +168,38 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <div class="small mt-1 text-muted">
                                         <i class="fas fa-user-check me-1"></i> By: <strong><?= htmlspecialchars($v['checkin_staff_name'] ?: 'N/A') ?></strong>
                                     </div>
-                                        <?php if(!empty($v['meeting_out_time'])): ?>
-                                            <div class="small text-danger mt-1">
-                                                <i class="fas fa-sign-out-alt me-1"></i> 
-                                                <?= date("h:i A", strtotime($v['meeting_out_time'])) ?>
+
+                                    <?php if(!empty($v['my_start_time']) && $v['my_start_time'] != $v['in_time']): ?>
+                                        <div class="small mt-2 text-info border-top pt-1">
+                                            <i class="fas fa-exchange-alt me-1"></i> Received at: 
+                                            <strong><?= date("h:i A", strtotime($v['my_start_time'])) ?></strong>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <?php if(!empty($v['meeting_out_time'])): ?>
+                                        <div class="small text-danger mt-1 border-top pt-1">
+                                            <i class="fas fa-door-closed me-1"></i> Meeting Ended: 
+                                            <strong><?= date("h:i A", strtotime($v['meeting_out_time'])) ?></strong>
+                                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                                By: <?= htmlspecialchars($v['current_host_name'] ?: 'Host') ?>
                                             </div>
-                                        <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if($v['approval_status'] == 2): ?>
-                                        <span class="badge bg-soft-danger text-danger small"><i class="fas fa-times-circle me-1"></i> Rejected</span>
-                                    <?php elseif($v['approval_status'] == 3): ?>
-                                        <span class="badge bg-soft-info text-info small"><i class="fas fa-calendar-alt me-1"></i> Scheduled</span>
+                                    <?php 
+                                        $is_expired = false;
+                                        if($v['approval_status'] == 3) {
+                                            $scheduled_time = !empty($v['meeting_date_time']) ? strtotime($v['meeting_date_time']) : time();
+                                            if((time() - $scheduled_time) > (12 * 3600)) $is_expired = true;
+                                        }
+
+                                        if($v['approval_status'] == 2): ?>
+                                            <span class="badge bg-soft-danger text-danger small"><i class="fas fa-times-circle me-1"></i> Rejected</span>
+                                        <?php elseif($is_expired): ?>
+                                            <span class="badge bg-soft-danger text-danger small"><i class="fas fa-clock me-1"></i> Expired</span>
+                                        <?php elseif($v['approval_status'] == 3): ?>
+                                            <span class="badge bg-soft-info text-info small"><i class="fas fa-calendar-alt me-1"></i> Scheduled</span>
                                     <?php elseif(empty($v['meeting_out_time'])): ?>
                                         <span class="pulsing-dot me-1"></span>
                                         <span class="text-success small fw-bold">In Meeting</span>
@@ -185,15 +214,20 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                                             <?php if(empty($v['meeting_out_time']) && $v['employee_id'] == $emp_id): ?>
-                                                <li><a class="dropdown-item text-danger fw-bold endMeetingBtn" href="#" 
-                                                    data-pass="<?= $v['pass_no'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
-                                                    <i class="fas fa-stopwatch me-2"></i> End My Meeting
-                                                </a></li>
-                                                <li><a class="dropdown-item text-primary fw-bold assignVisitorBtn" href="#" 
-                                                    data-id="<?= $v['id'] ?>" data-pass="<?= $v['pass_no'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
-                                                    <i class="fas fa-user-plus me-2"></i> Assign to Other
-                                                </a></li>
+                                                <?php if(!empty($v['in_time'])): ?>
+                                                    <li><a class="dropdown-item text-danger fw-bold endMeetingBtn" href="#" 
+                                                        data-pass="<?= $v['pass_no'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
+                                                        <i class="fas fa-stopwatch me-2"></i> End My Meeting
+                                                    </a></li>
+                                                    <li><a class="dropdown-item text-primary fw-bold assignVisitorBtn" href="#" 
+                                                        data-id="<?= $v['id'] ?>" data-pass="<?= $v['pass_no'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
+                                                        <i class="fas fa-user-plus me-2"></i> Assign to Other
+                                                    </a></li>
+                                                <?php endif; ?>
                                             <?php endif; ?>
+                                            <li><a class="dropdown-item viewTimelineBtn" href="#" data-id="<?= $v['id'] ?>" data-name="<?= htmlspecialchars($v['visitor_name']) ?>">
+                                                <i class="fas fa-clock-rotate-left me-2"></i> View Meeting History
+                                            </a></li>
                                             <li><a class="dropdown-item" href="receipt.php?pass_no=<?= $v['pass_no'] ?>">
                                                 <i class="fas fa-print me-2"></i> View Full Pass
                                             </a></li>
@@ -250,6 +284,29 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </li>
                     </ul>
                 </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TIMELINE MODAL -->
+<div class="modal fade" id="timelineModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-history me-2"></i> Meeting Timeline</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-4">
+                    <h6 class="text-muted text-uppercase small ls-1">Visitor Tracking</h6>
+                    <h4 id="timelineVisitorName" class="fw-bold text-primary mb-0"></h4>
+                </div>
+                <div id="timelineContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -354,7 +411,8 @@ $my_visitors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <h5 class="mb-2">End meeting with <span id="modalVisitorName" class="text-primary fw-bold"></span>?</h5>
                 <p class="text-muted small">This will record the current time as the official Check-Out time.</p>
                 <input type="hidden" name="pass_no" id="modalPassNo">
-                <input type="hidden" name="meeting_out_time" id="modalOutTime">
+                <label class="form-label small fw-bold text-muted">End Time (Current)</label>
+                <input type="datetime-local" name="meeting_out_time" id="modalOutTime" class="form-control bg-light border-0 text-center fw-bold mb-3" readonly>
             </div>
             <div class="modal-footer bg-light border-0">
                 <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
@@ -426,6 +484,65 @@ document.addEventListener("DOMContentLoaded", function() {
         .then(data => {
             if(data.status == "success") location.reload();
             else alert(data.message);
+        });
+    });
+
+    // Timeline Logic
+    const timelineModal = new bootstrap.Modal(document.getElementById('timelineModal'));
+    document.querySelectorAll(".viewTimelineBtn").forEach(btn => {
+        btn.addEventListener("click", function(e) {
+            e.preventDefault();
+            const id = this.dataset.id;
+            document.getElementById('timelineVisitorName').innerText = this.dataset.name;
+            document.getElementById('timelineContent').innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
+            timelineModal.show();
+            
+            fetch("get_meeting_timeline.php?visitor_id=" + id)
+            .then(res => res.json())
+            .then(data => {
+                let html = '<div class="timeline-container">';
+                if(data.length === 0) {
+                    html += '<p class="text-center text-muted">No detailed meeting history recorded yet.</p>';
+                } else {
+                    data.forEach(item => {
+                        let out = item.check_out_time ? new Date(item.check_out_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '<span class="badge bg-success">Ongoing</span>';
+                        
+                        let durationTxt = "";
+                        if (item.check_out_time) {
+                            let diffMin = Math.round((new Date(item.check_out_time) - new Date(item.check_in_time)) / 60000);
+                            if (diffMin >= 60) {
+                                let h = Math.floor(diffMin / 60);
+                                let m = diffMin % 60;
+                                durationTxt = h + " hr" + (h > 1 ? "s" : "") + (m > 0 ? " " + m + " mins" : "");
+                            } else {
+                                durationTxt = diffMin + " mins";
+                            }
+                        }
+
+                        html += `
+                            <div class="mb-3 p-3 border rounded shadow-sm bg-white">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="fw-bold mb-0 text-primary">${item.emp_name}</h6>
+                                        <small class="text-muted">${item.department} | ${item.designation}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="small fw-bold">${new Date(item.check_in_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${out}</div>
+                                        ${durationTxt ? `<span class="badge bg-light text-dark border mt-1" style="font-size:0.6rem;">${durationTxt}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="mt-2 small border-top pt-2">
+                                    ${item.assigner_name !== item.emp_name ? `
+                                    <span class="text-muted">Assigned By:</span> <strong>${item.assigner_name}</strong>` : ''}
+                                    ${item.notes ? `${item.assigner_name !== item.emp_name ? '<br>' : ''}<span class="text-muted">Note:</span> <em>${item.notes}</em>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                html += '</div>';
+                document.getElementById('timelineContent').innerHTML = html;
+            });
         });
     });
 });

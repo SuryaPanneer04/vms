@@ -14,7 +14,7 @@ $user_role = $_SESSION['role'];
 if (isset($_GET['get_subordinates'])) {
     $manager_id = $_GET['get_subordinates'];
     if ($user_role == 'admin' && $manager_id == 'root') {
-        $stmt = $con->prepare("SELECT id, full_name, designation, department, email, reporting_manager FROM users WHERE reporting_manager = 0");
+        $stmt = $con->prepare("SELECT id, full_name, designation, department, email, reporting_manager FROM users WHERE reporting_manager = '0' OR reporting_manager = 'admin' OR reporting_manager = '' OR reporting_manager IS NULL");
         $stmt->execute();
     } else {
         $stmt = $con->prepare("SELECT id, full_name, designation, department, email, reporting_manager FROM users WHERE reporting_manager = ?");
@@ -251,7 +251,7 @@ async function fetchNodes(managerId, container, isRoot = false) {
                 const initials = user.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().substring(0,2);
                 
                 const card = $(`
-                    <div class="employee-card" data-id="${user.id}" data-name="${user.full_name}" data-dept="${user.department}" data-desig="${user.designation}">
+                    <div class="employee-card" data-id="${user.id}" data-name="${user.full_name}" data-dept="${user.department || ''}" data-desig="${user.designation || ''}">
                         <div class="avatar">${initials}</div>
                         <div class="user-info w-100 overflow-hidden">
                             <p class="mb-0 fw-bold small text-truncate">${user.full_name}</p>
@@ -358,20 +358,55 @@ function loadVisitors(user) {
 }
 
 function filterTree() {
-    const s = $('#nodeSearch').val().toLowerCase();
-    const d = $('#deptFilter').val().toLowerCase();
+    const s = ($('#nodeSearch').val() || "").toLowerCase().trim();
+    const d = ($('#deptFilter').val() || "").toLowerCase().trim();
     
-    // Clear current visitor view as requested (organization show aganum entries venam)
+    // Clear current visitor view
     $('#placeholderPane').removeClass('d-none');
     $('#contentPane').addClass('d-none');
     $(".employee-card").removeClass("active");
 
+    // If no filter, show everything
+    if (!s && !d) {
+        $('.tree-node').show();
+        $('.tree-branch').each(function() {
+            if ($(this).parent().hasClass('tree-node') && !$(this).parent().find('> .employee-card').hasClass('expanded')) {
+                $(this).hide();
+            } else {
+                $(this).show();
+            }
+        });
+        return;
+    }
+
+    // Hide everything first
+    $('.tree-node').hide();
+    $('.tree-branch').hide();
+
     $('.employee-card').each(function() {
-        const name = $(this).data('name').toLowerCase();
-        const dept = $(this).data('dept').toLowerCase();
-        $(this).closest('.tree-node').toggle((!s || name.includes(s)) && (!d || dept.includes(d)));
+        const name = ($(this).data('name') || "").toString().toLowerCase().trim();
+        const dept = ($(this).data('dept') || "").toString().toLowerCase().trim();
+        
+        const nameMatch = !s || name.includes(s);
+        const deptMatch = !d || dept === d;
+
+        if (nameMatch && deptMatch) {
+            let $node = $(this).closest('.tree-node');
+            $node.show();
+            
+            // Show all parent nodes and branches
+            $node.parents('.tree-node').show();
+            $node.parents('.tree-branch').show();
+            
+            // Expand parents
+            $node.parents('.tree-node').find('> .employee-card').addClass('expanded');
+        }
     });
 }
+
+// Add auto-filter triggers
+$(document).on('keyup', '#nodeSearch', filterTree);
+$(document).on('change', '#deptFilter', filterTree);
 </script>
 
 <?php include("includes/footer.php"); ?>

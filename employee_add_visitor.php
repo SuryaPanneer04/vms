@@ -81,6 +81,18 @@ $current_time = date("Y-m-d\TH:i");
                         </div>
 
                         <div class="col-md-6">
+                            <label class="form-label fw-bold">Gender <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-0"><i class="fas fa-venus-mars"></i></span>
+                                <select class="form-select" name="gender" required>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
                             <label class="form-label fw-bold">Visitor Location</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-0"><i class="fas fa-map-marker-alt"></i></span>

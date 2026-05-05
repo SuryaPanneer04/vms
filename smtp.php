@@ -9,6 +9,9 @@ function sendMail($to, $subject, $body){
     
     // Fetch config from DB
     $config = $con->query("SELECT * FROM mail_settings LIMIT 1")->fetch();
+    if(!$config){
+        return "Mail configuration not found in database.";
+    }
     
     $mail = new PHPMailer(true);
 

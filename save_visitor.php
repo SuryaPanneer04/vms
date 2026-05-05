@@ -20,6 +20,7 @@ $vehicle_type   = trim($_POST['vehicle_type'] ?? '');
 $vehicle_number = trim($_POST['vehicle_number'] ?? '');
 $id_type   = trim($_POST['id_type'] ?? '');
 $location  = trim($_POST['location'] ?? '');
+$gender    = trim($_POST['gender'] ?? 'Male');
 $img_capture = trim($_POST['img_capture'] ?? '');
 
 // Robust integer conversion to avoid '1366 Incorrect integer value' error
@@ -111,6 +112,7 @@ try {
             person_to_meet = ?,
             img_capture   = ?,
             location      = ?,
+            gender        = ?,
             approval_status = 1,
             checkin_by    = ?,
             id_upload     = COALESCE(?, id_upload)
@@ -137,6 +139,7 @@ try {
             $person_to_meet,
             $img_capture,
             $location,
+            $gender,
             $_SESSION['user_id'] ?? null,
             $id_file_name,
             $id
@@ -177,10 +180,11 @@ try {
             person_to_meet,
             img_capture,
             location,
+            gender,
             checkin_by,
             approval_status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
 
         $stmt->execute([
             $pass_no,
@@ -204,6 +208,7 @@ try {
             $person_to_meet,
             $img_capture,
             $location,
+            $gender,
             $_SESSION['user_id'] ?? null
         ]);
 

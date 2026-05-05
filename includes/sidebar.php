@@ -159,6 +159,11 @@ $sidebar_color = $stmt_theme->fetchColumn() ?: '#000000';
 
         <?php elseif ($user_role == 'gate' || $user_role == 'timeoffice'): ?>
             <div class="section-title">Security Entry</div>
+            <li class="nav-item">
+                <a href="timeoffice_dashboard.php" class="nav-link <?= $current_page == 'timeoffice_dashboard.php' ? 'active' : '' ?>">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </a>
+            </li>
              <li class="nav-item">
                 <a href="add_visitor_form.php" class="nav-link <?= $current_page == 'add_visitor_form.php' ? 'active' : '' ?>">
                     <i class="fas fa-user-plus"></i> Visitor Entry

@@ -19,6 +19,7 @@ if($row){
     echo json_encode([
         "status"      => "found",
         "visitor_name"=> $row['visitor_name'],
+        "gender"      => $row['gender'],
         "visitor_type"=> $row['visitor_type'],
         "company_name"=> $row['company_name'],
         "email"       => $row['email'],
